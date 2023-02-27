@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: testing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: serviceaccounts-view-testing
+  namespace: testing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:serviceaccounts:testing
+---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: dummy-nginx
+  namespace: testing
+  labels: 
+    app: dummy
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1 # Number of replicas that will be created for this deployment
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest # Image that will be used inside the container in the cluster
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80 # The port that the container is running on in the cluster
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - "sleep 10" # set prestop hook: time to update the network rules before pod deleting
+      terminationGracePeriodSeconds: 45 # > graceful shutdown timeout in Spring + prestop hook
+---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: dummy-nginx-label
+  namespace: testing
+  labels: 
+    app: dummy
+spec:
+  selector:
+    matchLabels:
+      app: nginx-label
+  replicas: 1 # Number of replicas that will be created for this deployment
+  template:
+    metadata:
+      labels:
+        app: nginx-label
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest # Image that will be used inside the container in the cluster
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80 # The port that the container is running on in the cluster
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - "sleep 10" # set prestop hook: time to update the network rules before pod deleting
+      terminationGracePeriodSeconds: 45 # > graceful shutdown timeout in Spring + prestop hook
+            

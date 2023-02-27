@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: serviceaccounts-view
+  namespace: demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:serviceaccounts:demo
+---
+apiVersion: v1 # Kubernetes API version
+kind: Service # Kubernetes resource kind we are creating
+metadata: # Metadata of the resource kind we are creating
+  name: chaos-monkey-pod
+  namespace: demo  
+spec:
+  selector:
+    app: chaos-monkey-pod #this label ties your Service to your Deployment resource
+  ports:
+    - protocol: "TCP"
+      port: 8081 # The port that the service is running on in the cluster
+      targetPort: 8080 # The port exposed by the service
+  type: LoadBalancer # type of the service. LoadBalancer indicates that our service will be external.
+---
+apiVersion: apps/v1
+kind: Deployment #
+metadata:
+  name: chaos-monkey-pod
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: chaos-monkey-pod
+  replicas: 1 # Number of replicas that will be created for this deployment
+  template:
+    metadata:
+      labels:
+        app: chaos-monkey-pod
+    spec:
+      containers:
+        - name: chaos-monkey-pod
+          image: chaos-monkey-pod # Image that will be used inside the container in the cluster
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080 # The port that the container is running on in the cluster
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - "sleep 10" # set prestop hook: time to update the network rules before pod deleting
+      terminationGracePeriodSeconds: 45 # > graceful shutdown timeout in Spring + prestop hook
+            
